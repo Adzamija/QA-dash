@@ -144,3 +144,4 @@ Inspirirano sa [QA Orchestra](https://github.com/Anasss/qa-orchestra) — pojedn
 ## 📄 Licenca
 
 MIT
+# QA-dash
