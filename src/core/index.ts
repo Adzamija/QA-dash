@@ -14,6 +14,12 @@ export {
   parseTestCasesFromResponse,
   generateFullPrompt 
 } from './services/test-case-generator';
+export { 
+  ClaudeApiService, 
+  createClaudeApiService,
+  type ClaudeMessageRequest,
+  type ClaudeMessageResponse 
+} from './services/claude-api-service';
 
 // Store
 export { 
