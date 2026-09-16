@@ -4,18 +4,38 @@ import { useTokens } from '../contexts/TokensContext';
 export function Tokens() {
   const { tokens, updateTokens, isConfigured } = useTokens();
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [saveStatus, setSaveStatus] = useState<Record<string, 'idle' | 'saving' | 'success' | 'error'>>({});
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   const toggleShowKey = (key: string) => {
     setShowKeys({ ...showKeys, [key]: !showKeys[key] });
   };
 
-  const handleSave = (service: string, field: string, value: string) => {
-    updateTokens({
-      [service]: {
-        ...tokens[service as keyof typeof tokens],
-        [field]: value,
-      },
-    } as any);
+  const handleSave = async (service: string, field: string, value: string) => {
+    setSaveStatus(prev => ({ ...prev, [`${service}-${field}`]: 'saving' }));
+    
+    try {
+      // Simulate a brief delay for better UX feedback
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      updateTokens({
+        [service]: {
+          ...tokens[service as keyof typeof tokens],
+          [field]: value,
+        },
+      } as any);
+      
+      setSaveStatus(prev => ({ ...prev, [`${service}-${field}`]: 'success' }));
+      setLastSaved(new Date());
+      
+      // Reset status after 2 seconds
+      setTimeout(() => {
+        setSaveStatus(prev => ({ ...prev, [`${service}-${field}`]: 'idle' }));
+      }, 2000);
+    } catch (error) {
+      setSaveStatus(prev => ({ ...prev, [`${service}-${field}`]: 'error' }));
+      console.error('Failed to save token:', error);
+    }
   };
 
   const services = [
@@ -92,12 +112,22 @@ export function Tokens() {
 
   return (
     <div className="max-w-5xl mx-auto p-8 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text">API Tokens</h1>
-        <p className="text-sm text-text-muted mt-1">
-          Manage all your API keys and credentials in one place
-        </p>
+      {/* Header with Save Status */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-text">API Tokens</h1>
+          <p className="text-sm text-text-muted mt-1">
+            Manage all your API keys and credentials in one place
+          </p>
+        </div>
+        {lastSaved && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-success/10 border border-success/30 rounded-lg">
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span className="text-xs text-success font-medium">
+              Saved {lastSaved.toLocaleTimeString()}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Status Overview */}
@@ -166,7 +196,23 @@ export function Tokens() {
                             type={isVisible ? 'text' : 'password'}
                             value={value}
                             onChange={(e) => handleSave(service.id, field.key, e.target.value)}
-                            className="w-full px-3 py-2 pr-10 bg-surface-2 border border-border rounded-lg text-sm text-text focus:outline-none focus:border-accent transition-colors"
+                            onBlur={() => {
+                              const status = saveStatus[`${service.id}-${field.key}`];
+                              if (status === 'success') {
+                                setTimeout(() => {
+                                  setSaveStatus(prev => ({ ...prev, [`${service.id}-${field.key}`]: 'idle' }));
+                                }, 1000);
+                              }
+                            }}
+                            className={`w-full px-3 py-2 pr-10 bg-surface-2 border rounded-lg text-sm text-text focus:outline-none transition-colors ${
+                              saveStatus[`${service.id}-${field.key}`] === 'saving' 
+                                ? 'border-accent animate-pulse' 
+                                : saveStatus[`${service.id}-${field.key}`] === 'success'
+                                ? 'border-success bg-success/5'
+                                : saveStatus[`${service.id}-${field.key}`] === 'error'
+                                ? 'border-danger bg-danger/5'
+                                : 'border-border focus:border-accent'
+                            }`}
                             placeholder={`Enter ${field.label.toLowerCase()}`}
                           />
                           <button
@@ -176,6 +222,22 @@ export function Tokens() {
                           >
                             {isVisible ? '🙈' : '👁️'}
                           </button>
+                          {/* Save Status Indicator */}
+                          {saveStatus[`${service.id}-${field.key}`] === 'saving' && (
+                            <div className="absolute right-8 top-1/2 -translate-y-1/2">
+                              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          )}
+                          {saveStatus[`${service.id}-${field.key}`] === 'success' && (
+                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-success">
+                              ✓
+                            </div>
+                          )}
+                          {saveStatus[`${service.id}-${field.key}`] === 'error' && (
+                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-danger">
+                              ✗
+                            </div>
+                          )}
                         </>
                       ) : field.type === 'checkbox' ? (
                         <label className="flex items-center gap-2 cursor-pointer">
